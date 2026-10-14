@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+
+# 环境与缓存
+.env
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 模型权重（体积大，首次运行自行下载）
+backend/models/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# 运行时生成
+logs/
+uploads/
+reports/
+data/
+*.db
+*.sqlite
+
+# 测试运行时输出
+tests/*.txt
+tests/*.jpg
+tests/*.png
+
+# 系统
+.DS_Store
+Thumbs.db

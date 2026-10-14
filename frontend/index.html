@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跌倒/在床行为精准判别系统</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="6" fill="#1a73e8"/>
+                    <path d="M10 22V14M16 22V10M22 22V16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="10" cy="12" r="2" fill="#4fc3f7"/>
+                    <circle cx="16" cy="8" r="2" fill="#ffb74d"/>
+                    <circle cx="22" cy="14" r="2" fill="#81c784"/>
+                </svg>
+            </div>
+            <div class="title-group">
+                <h1 class="main-title">跌倒/在床行为精准判别系统</h1>
+                <p class="sub-title">基于多模态分割与姿态估计 | Multi-Agent协同与CV智能感知</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-badge" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">连接中...</span>
+            </div>
+            <div class="model-badge" id="modelStatus">
+                <span>模型加载中...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-container">
+        <!-- 左侧：视频检测区 -->
+        <section class="video-section">
+            <div class="video-container">
+                <div class="video-wrapper" id="videoWrapper">
+                    <video id="videoPlayer" class="video-player" playsinline></video>
+                    <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                            <rect x="10" y="20" width="60" height="40" rx="4" stroke="#5f6368" stroke-width="2"/>
+                            <path d="M30 35L50 45L30 55V35Z" fill="#5f6368"/>
+                        </svg>
+                        <p>上传视频或开启摄像头开始检测</p>
+                    </div>
+                    <!-- 跌倒报警遮罩 -->
+                    <div class="fall-alarm-overlay" id="fallAlarmOverlay">
+                        <div class="fall-alarm-content">
+                            <div class="fall-alarm-icon">⚠</div>
+                            <div class="fall-alarm-text">跌倒报警</div>
+                            <div class="fall-alarm-sub" id="fallAlarmTime">检测到跌倒事件</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 视频控制栏 -->
+                <div class="video-controls">
+                    <div class="control-group">
+                        <label class="upload-btn">
+                            <input type="file" id="videoInput" accept="video/*" hidden>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                <path d="M9 1V13M9 1L4 6M9 1L14 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 13V15C2 15.5523 2.44772 16 3 16H15C15.5523 16 16 15.5523 16 15V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            上传视频
+                        </label>
+                        <button class="control-btn" id="cameraBtn">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                <rect x="2" y="5" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 8L16 5.5V12.5L12 10" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            </svg>
+                            摄像头
+                        </button>
+                        <button class="control-btn" id="playBtn" disabled>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                                <path d="M5 3L15 9L5 15V3Z"/>
+                            </svg>
+                            播放
+                        </button>
+                        <button class="control-btn" id="stopBtn" disabled>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                                <rect x="4" y="4" width="10" height="10" rx="1"/>
+                            </svg>
+                            停止
+                        </button>
+                    </div>
+                    <div class="control-group">
+                        <button class="control-btn danger" id="resetBedBtn" title="重置床体掩膜">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                <path d="M2 9C2 5.13401 5.13401 2 9 2C12.866 2 16 5.13401 16 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M16 2V6H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 9C16 12.866 12.866 16 9 16C5.13401 16 2 12.866 2 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            重置床体
+                        </button>
+                        <button class="control-btn" id="resetBtn" title="重置系统">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                <path d="M3 9C3 5.68629 5.68629 3 9 3C12.3137 3 15 5.68629 15 9C15 12.3137 12.3137 15 9 15C5.68629 15 3 12.3137 3 9Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M9 5V9L11.5 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            重置系统
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 进度条 -->
+                <div class="progress-bar-container" id="progressContainer" style="display:none;">
+                    <div class="progress-bar" id="progressBar"></div>
+                    <span class="progress-text" id="progressText">0 / 0 帧</span>
+                </div>
+            </div>
+
+            <!-- 检测指标面板 -->
+            <div class="metrics-panel">
+                <div class="metric-card">
+                    <div class="metric-icon fps-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L15 8.5L22 9.3L17 14.1L18.2 21L12 17.8L5.8 21L7 14.1L2 9.3L9 8.5L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="fpsValue">--</span>
+                        <span class="metric-label">处理帧率 FPS</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon latency-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 7V12L15.5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="latencyValue">--</span>
+                        <span class="metric-label">单帧延迟 ms</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon person-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="6" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M6 21V18C6 14.6863 8.68629 12 12 12C15.3137 12 18 14.6863 18 18V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="personCount">0</span>
+                        <span class="metric-label">检测人数</span>
+                    </div>
+                </div>
+                <div class="metric-card fall-card" id="fallMetricCard">
+                    <div class="metric-icon fall-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L12 6M12 18L12 22M2 12L6 12M18 12L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="fallCount">0</span>
+                        <span class="metric-label">跌倒事件</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右侧：信息面板 -->
+        <aside class="info-panel">
+            <!-- 状态分布 -->
+            <div class="panel-card">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M3 15V9M9 15V3M15 15V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    行为状态分布
+                </h3>
+                <div class="state-bars">
+                    <div class="state-bar-row">
+                        <span class="state-dot active"></span>
+                        <span class="state-name">活动中</span>
+                        <div class="state-bar"><div class="state-bar-fill active" id="activeBar" style="width:0%"></div></div>
+                        <span class="state-count" id="activeCount">0</span>
+                    </div>
+                    <div class="state-bar-row">
+                        <span class="state-dot onbed"></span>
+                        <span class="state-name">在床休息</span>
+                        <div class="state-bar"><div class="state-bar-fill onbed" id="onbedBar" style="width:0%"></div></div>
+                        <span class="state-count" id="onbedCount">0</span>
+                    </div>
+                    <div class="state-bar-row">
+                        <span class="state-dot fallen"></span>
+                        <span class="state-name">跌倒报警</span>
+                        <div class="state-bar"><div class="state-bar-fill fallen" id="fallenBar" style="width:0%"></div></div>
+                        <span class="state-count" id="fallenCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 人员详情 -->
+            <div class="panel-card">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <circle cx="9" cy="5" r="3" stroke="currentColor" stroke-width="2"/>
+                        <path d="M3 16V14C3 10.6863 5.68629 8 9 8C12.3137 8 15 10.6863 15 14V16" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    检测人员详情
+                </h3>
+                <div class="person-list" id="personList">
+                    <div class="empty-state">暂无检测数据</div>
+                </div>
+            </div>
+
+            <!-- 算法信息 -->
+            <div class="panel-card">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M9 2L16 6V12L9 16L2 12V6L9 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M9 16V12M2 6L9 10L16 6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    算法模块状态
+                </h3>
+                <div class="algo-list">
+                    <div class="algo-item">
+                        <span class="algo-name">床体分割 (MobileSAM)</span>
+                        <span class="algo-status ok" id="samStatus">待加载</span>
+                    </div>
+                    <div class="algo-item">
+                        <span class="algo-name">姿态检测 (YOLOv8-Pose)</span>
+                        <span class="algo-status ok" id="poseStatus">待加载</span>
+                    </div>
+                    <div class="algo-item">
+                        <span class="algo-name">几何判别 (IoU+距离)</span>
+                        <span class="algo-status ok" id="classifierStatus">就绪</span>
+                    </div>
+                    <div class="algo-item">
+                        <span class="algo-name">LLM纠错 (Ollama/qwen)</span>
+                        <span class="algo-status" id="llmStatus">检测中</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 事件日志 -->
+            <div class="panel-card">
+                <h3 class="panel-title">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M3 4H15M3 9H15M3 14H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    事件日志
+                </h3>
+                <div class="event-log" id="eventLog">
+                    <div class="log-entry info">系统初始化完成</div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- 底部信息栏 -->
+    <footer class="footer">
+        <div class="footer-left">
+            <span>八维文化与产业研究院 | 人工智能CV方向</span>
+        </div>
+        <div class="footer-right">
+            <span>后端: <code>localhost:8564</code></span>
+            <span>前端: <code>localhost:8524</code></span>
+            <span id="currentTime"></span>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
